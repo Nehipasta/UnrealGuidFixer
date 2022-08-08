@@ -7,14 +7,10 @@
 void FGuidFixerCommands::RegisterCommands()
 {
 	UI_COMMAND(FixMaterialGuids, "Fix Material GUIDs",
-	           "Fixes material GUIDs so that there are no materials with duplicate IDs.",
+	           "Fixes material lighting GUIDs so that there are no materials with empty or duplicate GUIDs.",
 	           EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(FixTextureGuids, "Fix Texture GUIDs",
-	           "Fixes texture GUIDs so that there are no textures with duplicate IDs.",
-	           EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(FixEmptyTextureGuids, "Fix Empty Texture GUIDs",
-	           "This will update empty texture GUIDs, which may help if the other fixes weren't enough to solve the issue.\n"
-	           "This will attempt to update engine textures, so will often report making changes that will be reset on restart.",
+	           "Fixes texture lighting GUIDs so that there are no textures with empty or duplicate GUIDs.",
 	           EUserInterfaceActionType::Button, FInputChord());
 }
 

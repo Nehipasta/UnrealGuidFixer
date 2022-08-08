@@ -21,5 +21,4 @@ public:
 public:
 	TSharedPtr< FUICommandInfo > FixMaterialGuids;
 	TSharedPtr< FUICommandInfo > FixTextureGuids;
-	TSharedPtr< FUICommandInfo > FixEmptyTextureGuids;
 };

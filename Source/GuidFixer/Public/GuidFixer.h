@@ -17,15 +17,17 @@ public:
 	
 	void FixMaterialGuids() const;
 	void FixTextureGuids() const;
-	void FixEmptyTextureGuids() const;
 	
 	
 private:
 	void RegisterMenus();
 
-
+	bool ShouldObjectBeUpdated(FString Path) const;
+	
+	void SetMaterialLightingGuid(UMaterialInterface* Material) const;
+	void SetTextureLightingGuid(UTexture* Texture) const;
+	
 private:
 	TSharedPtr<class FUICommandList> FixMaterialGuidsCommands;
 	TSharedPtr<class FUICommandList> FixTextureGuidsCommands;
-	TSharedPtr<class FUICommandList> FixEmptyTextureGuidsCommands;
 };

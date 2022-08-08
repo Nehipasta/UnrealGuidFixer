@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GuidFixer.h"
+
 #include "GuidFixerStyle.h"
 #include "GuidFixerCommands.h"
 #include "Misc/MessageDialog.h"
@@ -33,14 +34,6 @@ void FGuidFixerModule::StartupModule()
 		FExecuteAction::CreateRaw(this, &FGuidFixerModule::FixTextureGuids),
 		FCanExecuteAction());
 
-	FixEmptyTextureGuidsCommands = MakeShareable(new FUICommandList);
-
-	FixEmptyTextureGuidsCommands->MapAction(
-		FGuidFixerCommands::Get().FixEmptyTextureGuids,
-		FExecuteAction::CreateRaw(this, &FGuidFixerModule::FixEmptyTextureGuids),
-		FCanExecuteAction());
-
-
 	UToolMenus::RegisterStartupCallback(
 		FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FGuidFixerModule::RegisterMenus));
 }
@@ -69,8 +62,6 @@ void FGuidFixerModule::RegisterMenus()
 		FToolMenuSection& Section = Menu->AddSection("GuidFixer", LOCTEXT("GUID Fixer", "GUID Fixer"));
 		Section.AddMenuEntryWithCommandList(FGuidFixerCommands::Get().FixMaterialGuids, FixMaterialGuidsCommands);
 		Section.AddMenuEntryWithCommandList(FGuidFixerCommands::Get().FixTextureGuids, FixTextureGuidsCommands);
-		Section.AddMenuEntryWithCommandList(FGuidFixerCommands::Get().FixEmptyTextureGuids,
-		                                    FixEmptyTextureGuidsCommands);
 	}
 }
 
@@ -80,109 +71,121 @@ void FGuidFixerModule::FixMaterialGuids() const
 {
 	TMap<FGuid, UMaterialInterface*> Guids;
 
-	bool bMadeChanges = false;
+	bool bUpdatedGuids = false;
 	for (TObjectIterator<UMaterialInterface> Material; Material; ++Material)
 	{
-		if (!Material->GetLightingGuid().IsValid())
+		const FGuid& LightingGuid = Material->GetLightingGuid();
+
+		if (!LightingGuid.IsValid())
 		{
-			Material->SetLightingGuid();
-			Material->Modify();
-			bMadeChanges = true;
-			UE_LOG(LogTemp, Display, TEXT("%s: Material has had its GUID updated."), *Material->GetPathName());
+			if (ShouldObjectBeUpdated(*Material->GetPathName()))
+			{
+				SetMaterialLightingGuid(*Material);
+				bUpdatedGuids = true;
+			}
 			continue;
 		}
 
-		UMaterialInterface** Result = Guids.Find(Material->GetLightingGuid());
-
+		UMaterialInterface** Result = Guids.Find(LightingGuid);
 		if (Result == nullptr)
 		{
-			Guids.Add(Material->GetLightingGuid(), *Material);
+			Guids.Add(LightingGuid, *Material);
+			continue;
 		}
-		else
+
+		// Update the initial material with the same GUID if its GUID hasn't been updated already
+		if ((*Result)->GetLightingGuid() == LightingGuid && ShouldObjectBeUpdated((*Result)->GetPathName()))
 		{
-			// Update the initial material with the same GUID if its GUID hasn't been updated already
-			// This is probably unnecessary, but better safe than sorry
-			if ((*Result)->GetLightingGuid() == Material->GetLightingGuid())
-			{
-				(*Result)->SetLightingGuid();
-				(*Result)->Modify();
-				UE_LOG(LogTemp, Display, TEXT("%s: Material has had its GUID updated."), *Material->GetPathName());
-			}
-			
-			Material->SetLightingGuid();
-			Material->Modify();
-			bMadeChanges = true;
-			UE_LOG(LogTemp, Display, TEXT("%s: Material has had its GUID updated."), *Material->GetPathName());
+			SetMaterialLightingGuid(*Result);
+			bUpdatedGuids = true;
+		}
+
+		if (ShouldObjectBeUpdated(*Material->GetPathName()))
+		{
+			SetMaterialLightingGuid(*Material);
+			bUpdatedGuids = true;
 		}
 	}
 
-	const FText DialogText = FText::FromString(bMadeChanges
-		                                           ? "At least one material GUID has been changed. Use save all to save these changes."
-		                                           : "No duplicate material GUIDs found.");
+	const FText DialogText = FText::FromString(!bUpdatedGuids
+		                                           ? "No duplicate or empty material GUIDs found."
+		                                           : "At least one material GUID has been changed.\n"
+		                                           "Use \"Save All\" to save these changes.\n\n\n"
+		                                           "Check the Output Log to see which materials have been updated.");
 	FMessageDialog::Open(EAppMsgType::Ok, DialogText);
+}
+
+bool FGuidFixerModule::ShouldObjectBeUpdated(FString Path) const
+{
+	return !Path.StartsWith("/Engine/")
+		&& !Path.StartsWith("/Script/LevelSequence.Default__LevelSequenceMediaController");
+}
+
+void FGuidFixerModule::SetMaterialLightingGuid(UMaterialInterface* Material) const
+{
+	if (!Material)
+	{
+		return;
+	}
+
+	Material->SetLightingGuid();
+	Material->Modify();
+	UE_LOG(LogTemp, Display, TEXT("%s: Material lighting GUID updated."), *Material->GetPathName());
 }
 
 void FGuidFixerModule::FixTextureGuids() const
 {
 	TMap<FGuid, UTexture*> Guids;
 
-	bool bMadeChanges = false;
+	bool bUpdatedGuids = false;
 	for (TObjectIterator<UTexture> Texture; Texture; ++Texture)
 	{
-		if (!Texture->GetLightingGuid().IsValid())
+		const FGuid& LightingGuid = Texture->GetLightingGuid();
+
+		if (!LightingGuid.IsValid())
 		{
+			if (ShouldObjectBeUpdated(*Texture->GetPathName()))
+			{
+				SetTextureLightingGuid(*Texture);
+				bUpdatedGuids = true;
+			}
 			continue;
 		}
 
-		UTexture** Result = Guids.Find(Texture->GetLightingGuid());
+		UTexture** Result = Guids.Find(LightingGuid);
 		if (Result == nullptr)
 		{
-			Guids.Add(Texture->GetLightingGuid(), *Texture);
+			Guids.Add(LightingGuid, *Texture);
+			continue;
 		}
-		else
-		{
-			// Update the initial texture with the same GUID if its GUID hasn't been updated already
-			// This is probably unnecessary, but better safe than sorry
-			if ((*Result)->GetLightingGuid() == Texture->GetLightingGuid())
-			{
-				(*Result)->SetLightingGuid();
-				(*Result)->Modify();
-				UE_LOG(LogTemp, Display, TEXT("%s: Texture has had its GUID updated."), *Texture->GetPathName());
-			}
 
-			Texture->SetLightingGuid();
-			Texture->Modify();
-			bMadeChanges = true;
-			UE_LOG(LogTemp, Display, TEXT("%s: Texture has had its GUID updated."), *Texture->GetPathName());
+		// Update the initial material with the same GUID if its GUID hasn't been updated already
+		if ((*Result)->GetLightingGuid() == LightingGuid && ShouldObjectBeUpdated((*Result)->GetPathName()))
+		{
+			SetTextureLightingGuid(*Result);
+			bUpdatedGuids = true;
+		}
+
+		if (ShouldObjectBeUpdated(*Texture->GetPathName()))
+		{
+			SetTextureLightingGuid(*Texture);
+			bUpdatedGuids = true;
 		}
 	}
 
-	const FText DialogText = FText::FromString(bMadeChanges
-		                                           ? "At least one texture GUID has been changed. Use save all to save these changes."
-		                                           : "No duplicate texture GUIDs found.");
+	const FText DialogText = FText::FromString(!bUpdatedGuids
+		                                           ? "No duplicate or empty texture GUIDs found."
+		                                           : "At least one texture GUID has been changed.\n"
+		                                           "Use \"Save All\" to save these changes.\n\n\n"
+		                                           "Check the Output Log to see which textures have been updated.");
 	FMessageDialog::Open(EAppMsgType::Ok, DialogText);
 }
 
-void FGuidFixerModule::FixEmptyTextureGuids() const
+void FGuidFixerModule::SetTextureLightingGuid(UTexture* Texture) const
 {
-	bool bMadeChanges = false;
-	for (TObjectIterator<UTexture> Texture; Texture; ++Texture)
-	{
-		if (Texture->GetLightingGuid().IsValid())
-		{
-			continue;
-		}
-		
-		Texture->SetLightingGuid();
-		Texture->Modify();
-		bMadeChanges = true;
-		UE_LOG(LogTemp, Display, TEXT("%s: Texture has had its GUID updated."), *Texture->GetPathName());
-	}
-
-	const FText DialogText = FText::FromString(bMadeChanges
-		                                           ? "At least one texture GUID has been changed. Use save all to save these changes."
-		                                           : "No empty texture GUIDs found.");
-	FMessageDialog::Open(EAppMsgType::Ok, DialogText);
+	Texture->SetLightingGuid();
+	Texture->Modify();
+	UE_LOG(LogTemp, Display, TEXT("%s: Texture lighting GUID updated."), *Texture->GetPathName());
 }
 
 #undef LOCTEXT_NAMESPACE
