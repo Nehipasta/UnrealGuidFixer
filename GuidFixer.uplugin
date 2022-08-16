@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
-	"Version": 2,
-	"VersionName": "1.1",
+	"Version": 3,
+	"VersionName": "1.2",
 	"FriendlyName": "GUID Fixer",
 	"Description": "Fixes asset lighting GUIDs for Swarm lightning builds and texture streaming builds.",
 	"Category": "Other",
