@@ -45,6 +45,7 @@ TSharedRef< FSlateStyleSet > FGuidFixerStyle::Create()
 
 	Style->Set("GuidFixer.FixMaterialGuids", new IMAGE_BRUSH(TEXT("MaterialButtonIcon_64x"), Icon64x64));
 	Style->Set("GuidFixer.FixTextureGuids", new IMAGE_BRUSH(TEXT("TextureButtonIcon_40x"), Icon40x40));
+	Style->Set("GuidFixer.FixEngineTextureGuids", new IMAGE_BRUSH(TEXT("EngineTextureButtonIcon_40x"), Icon40x40));
 	return Style;
 }
 
